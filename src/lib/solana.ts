@@ -1,8 +1,9 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { Metadata, MPL_TOKEN_METADATA_PROGRAM_ID } from "@metaplex-foundation/mpl-token-metadata";
+import { getMetadataAccountDataSerializer } from "@metaplex-foundation/mpl-token-metadata";
 
 const RPC = process.env.SOLANA_RPC || "https://api.devnet.solana.com";
 const conn = new Connection(RPC, "confirmed");
+const TOKEN_METADATA_PROGRAM_ID = new PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
 
 function clean(s?: string) {
   return (s || "").replace(/\0/g, "").trim();
@@ -34,17 +35,17 @@ export async function fetchTokenInfo(mint: string): Promise<{ mint: string; name
 
   // Metaplex metadata PDA = ['metadata', programId, mint]
   const [metadataPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("metadata"), MPL_TOKEN_METADATA_PROGRAM_ID.toBuffer(), mintPk.toBuffer()],
-    MPL_TOKEN_METADATA_PROGRAM_ID
+    [Buffer.from("metadata"), TOKEN_METADATA_PROGRAM_ID.toBuffer(), mintPk.toBuffer()],
+    TOKEN_METADATA_PROGRAM_ID
   );
 
   try {
     const mdAcc = await conn.getAccountInfo(metadataPda);
     if (!mdAcc?.data) return { mint, decimals };
 
-    const metadata = Metadata.deserialize(mdAcc.data)[0];
-    const name = clean(metadata.data.name) || undefined;
-    const symbol = clean(metadata.data.symbol) || undefined;
+    const [metadata] = getMetadataAccountDataSerializer().deserialize(mdAcc.data);
+    const name = clean(metadata.name) || undefined;
+    const symbol = clean(metadata.symbol) || undefined;
 
     return { mint, name, symbol, decimals };
   } catch {
